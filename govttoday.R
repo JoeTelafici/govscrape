@@ -55,6 +55,7 @@ GetSCOTUSData <- function  (startdate=date(), enddate=NULL, type="opinion") {
   library(dplyr)  
   library(XML)
   library(stringr)
+  library(lubridate)
   
   ## Parameters
   ## startdate - first publication date, inclusive of search in %m/%d/Y format; defaults to today
@@ -65,11 +66,11 @@ GetSCOTUSData <- function  (startdate=date(), enddate=NULL, type="opinion") {
   opinurl <-"https://www.supremecourt.gov/opinions/slipopinion/17"
   
   xp_arg <- "//table[@class='MsoNormalTable']/tr[position()>1]/td//span"
-  opin_arg <- "//table/tbody/tr[position()>1]"
-  
+  opin_arg <- "/html/body//table/tr[position()>1]/td"
+  opin_rows <- "/html/body//table[position()=1]/tr[position()=1]/td"
   
   foo = url(argurl)
-  htmlcode = readLines(foo)
+  htmlcode = readLines(foo, warn=FALSE)
   close (foo)
   bar <- htmlTreeParse(htmlcode, useInternalNodes = T)
   myargdata <- xpathSApply(xmlRoot(bar), xp_arg, xmlValue)
@@ -80,17 +81,22 @@ GetSCOTUSData <- function  (startdate=date(), enddate=NULL, type="opinion") {
   myargdata <- lapply (myargdata, function(y) gsub ("\n..", " ", y))
   myargdata <- str_trim(lapply (myargdata, function(y) gsub ("\\s+", " ", y)))
   myargdata <- myargdata[unlist(lapply (myargdata, function(y) grepl ('^[^\\(]', y)))]
-  arguments <- tbl_df(myargdata)
-  arguments
+  myargdata <- cbind(lapply(myargdata, function(y) ifelse (!is.na(as.Date(y, "%A, %B %d")), "Date", "Docket-Case")), myargdata)
+  myargdata <- lapply(myargdata, function(y) ifelse (!is.na(as.Date(y, "%A, %B %d")), format.Date(as.Date(y, "%A, %B %d"), "%Y/%m/%d"), y))
+  arguments <- tbl_df(matrix(myargdata, nrow = length(myargdata)/2, ncol = 2, byrow = FALSE))
+  #arguments <- cbind(lapply(arguments, function(y) ifelse (!is.Date(y), "Date", "Docket-Case")), arguments)
+  colnames(arguments) <- c("Type", "Value")
+  write.csv (apply(arguments, 2, as.character), "./arguments.csv", row.names = FALSE) 
   #as.Date(myargdata[1], "%A, %B %d")
   
-  foo = url(opinurl)
-  htmlcode = readLines(foo)
-  close (foo)
-  bar <- htmlTreeParse(htmlcode, useInternalNodes = T)
-  myopindata <- xpathSApply(xmlRoot(bar), opin_arg, xmlValue)
-  myopindata
-  
+  foo2 = url(opinurl)
+  htmlcode2 = readLines(foo2, warn=FALSE)
+  close (foo2)
+  bar2 <- htmlTreeParse(htmlcode2, useInternalNodes = T)
+  myopindata <- xpathSApply(xmlRoot(bar2), opin_arg, xmlValue)
+  opinions <- as.data.frame(matrix(myopindata, ncol = 7, byrow = TRUE))
+  colnames(opinions) <- xpathSApply(xmlRoot(bar2), "(/html/body//table/tr[position()=1])[2]/th", xmlValue)
+  write.csv (opinions, "./opinions.csv", row.names = FALSE)
 
 }
 
