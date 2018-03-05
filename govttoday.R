@@ -65,6 +65,8 @@ GetSCOTUSData <- function  (startdate=date(), enddate=NULL, type="opinion") {
   opinurl <-"https://www.supremecourt.gov/opinions/slipopinion/17"
   
   xp_arg <- "//table[@class='MsoNormalTable']/tr[position()>1]/td//span"
+  opin_arg <- "//table/tbody/tr[position()>1]"
+  
   
   foo = url(argurl)
   htmlcode = readLines(foo)
@@ -77,7 +79,18 @@ GetSCOTUSData <- function  (startdate=date(), enddate=NULL, type="opinion") {
   myargdata <- lapply (myargdata, function(y) gsub ("V.\n..", "V. ", y))
   myargdata <- lapply (myargdata, function(y) gsub ("\n..", " ", y))
   myargdata <- str_trim(lapply (myargdata, function(y) gsub ("\\s+", " ", y)))
-  myargdata
+  myargdata <- myargdata[unlist(lapply (myargdata, function(y) grepl ('^[^\\(]', y)))]
+  arguments <- tbl_df(myargdata)
+  arguments
+  #as.Date(myargdata[1], "%A, %B %d")
   
+  foo = url(opinurl)
+  htmlcode = readLines(foo)
+  close (foo)
+  bar <- htmlTreeParse(htmlcode, useInternalNodes = T)
+  myopindata <- xpathSApply(xmlRoot(bar), opin_arg, xmlValue)
+  myopindata
+  
+
 }
 
